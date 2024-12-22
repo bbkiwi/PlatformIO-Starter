@@ -15,12 +15,12 @@ void loop() {}
 #else
 
 
-//#define DEBUG_PAINTER
-//#define DEBUG_KEYBOARD 1
+#define DEBUG_PAINTER
+#define DEBUG_KEYBOARD 1
 
 // Repeated keyboard presses in the main loop
 #define DEBUG_FORCED_KEYBOARD
-// #define DEBUG_MIDI_KEY 72
+#define DEBUG_MIDI_KEY 72
 
 #define MIDI_SERIAL_PORT Serial1
 
@@ -67,6 +67,7 @@ FASTLED_DESCRIPTION("A midi keyboard visualizer.");
 LedRopeTCL led_rope(kNumKeys);
 KeyboardState keyboard;
 
+int color_selector_value_to_use = 1;
 
 ////////////////////////////////////
 // Called when the note is pressed.
@@ -74,9 +75,11 @@ KeyboardState keyboard;
 //  channel - Ignored.
 //  midi_note - Value between 21-108 which maps to the keyboard keys.
 //  velocity - Value between 0-127
+//  color_selector_value - The value of the color scheme 0 - 7 see colormapper.h
 void HandleNoteOn(byte channel, byte midi_note, byte velocity) {
   FASTLED_DBG("HandleNoteOn: midi_note = " << int(midi_note) << ", velocity = " << int(velocity));
-  keyboard.HandleNoteOn(midi_note, velocity, color_selector.curr_val(), millis());
+  //keyboard.HandleNoteOn(midi_note, velocity, color_selector.curr_val(), millis());
+  keyboard.HandleNoteOn(midi_note, velocity, color_selector_value_to_use, millis());
 }
 
 /////////////////////////////////////////////////////////
@@ -94,7 +97,7 @@ void HandleNoteOff(byte channel, byte midi_note, byte velocity) {
 // This is uninmplemented because the test keyboard didn't
 // have this functionality. Right now the only thing it does is
 // print out that the key was pressed.
-void HandleAfterTouchPoly(byte channel, byte note, byte pressure) { 
+void HandleAfterTouchPoly(byte channel, byte note, byte pressure) {
   keyboard.HandleAfterTouchPoly(note, pressure);
 }
 
@@ -123,31 +126,31 @@ void HandleAfterTouchChannel(byte channel, byte pressure) {
 void setup() {
   FASTLED_DBG("setup");
   // Serial port for logging.
-  Serial.begin(57600);
+  Serial.begin(115200);
   //start serial with midi baudrate 31250
   // Initiate MIDI communications, listen to all channels
-  MY_MIDI.begin(MIDI_CHANNEL_OMNI);
-  
-  // Connect the HandleNoteOn function to the library, so it is called upon reception of a NoteOn.
-  MY_MIDI.setHandleNoteOn(HandleNoteOn);
-  MY_MIDI.setHandleNoteOff(HandleNoteOff);
-  MY_MIDI.setHandleAfterTouchPoly(HandleAfterTouchPoly);
-  MY_MIDI.setHandleAfterTouchChannel(HandleAfterTouchChannel);
-  MY_MIDI.setHandleControlChange(HandleControlChange);
+  //MY_MIDI.begin(MIDI_CHANNEL_OMNI);
 
-  ui_init();
+  // Connect the HandleNoteOn function to the library, so it is called upon reception of a NoteOn.
+  // MY_MIDI.setHandleNoteOn(HandleNoteOn);
+  // MY_MIDI.setHandleNoteOff(HandleNoteOff);
+  // MY_MIDI.setHandleAfterTouchPoly(HandleAfterTouchPoly);
+  // MY_MIDI.setHandleAfterTouchChannel(HandleAfterTouchChannel);
+  // MY_MIDI.setHandleControlChange(HandleControlChange);
+
+  // ui_init();
 }
 
 void DbgDoSimulatedKeyboardPress() {
 #ifdef DEBUG_FORCED_KEYBOARD
   static uint32_t start_time = 0;
-  static bool toggle = 0;
+  static bool toggle = 1;
 
   const uint32_t time_on = 25;
-  const uint32_t time_off = 500;
+  const uint32_t time_off = 250;
 
   // Just force it on whenever this function is called.
-  is_debugging = true;
+  //is_debugging = true;
 
   uint32_t now = millis();
   uint32_t delta_time = now - start_time;
@@ -158,23 +161,37 @@ void DbgDoSimulatedKeyboardPress() {
     return;
   }
 
-  int random_key = random(0, 88);
-
+  int random_key = random(0, 8)+21;
+  // if (random_key == 28) {
+  //   random_key = 21;
+  // } else {
+  //   random_key++;
+  // }
   start_time = now;
   if (toggle) {
     HandleNoteOn(0, random_key, 64);
+    if (is_debugging) {
+      Serial.print(random_key);
+      Serial.println(" Note on");
+    };
   } else {
     HandleNoteOff(0, random_key, 82);
+    if (is_debugging) {
+      Serial.print(random_key);
+      Serial.println(" Note off");
+    };
   }
   toggle = !toggle;
 #endif
 }
 
+Painter::VisState which_vis = Painter::kColumnNote;
 /////////////////////////////////////////////////////////;p
 // Repeatedly called by the app.
+
 void loop() {
   //FASTLED_DBG("loop");
-
+  //delay(3000);
   // Calculate dt.
   static uint32_t s_prev_time = 0;
   uint32_t prev_time = 0;
@@ -183,26 +200,41 @@ void loop() {
   uint32_t delta_ms = now_ms - s_prev_time;
   s_prev_time = now_ms;
 
-  if (!is_debugging) {
+  //if (!is_debugging) {
+  if (true) {
     if (Serial.available() > 0) {
+      Serial.println("Serial available");
       int v = Serial.read();
       if (v == 'd') {
-        is_debugging = true;
+        is_debugging = not is_debugging;
+        if (is_debugging)
+         {Serial.println("Debugging enabled.");
+         } else
+         {Serial.println("Debugging disabled.");
+        }
+      } else if (v == 'c') {
+        color_selector_value_to_use = (color_selector_value_to_use + 1) % 8;
+        Serial.print("Color selector value = ");
+        Serial.println(color_selector_value_to_use);
+      } else if (v == 'v') {
+        which_vis = (Painter::VisState)((which_vis + 1) % Painter::kNumVisStates);
+        Serial.print("Visualizer = ");
+        Serial.println(which_vis);
       }
     }
   }
 
   DbgDoSimulatedKeyboardPress();
-  
+
   const unsigned long start_time = millis();
   // Each frame we call the midi processor 100 times to make sure that all notes
   // are processed.
   for (int i = 0; i < 100; ++i) {
     MY_MIDI.read();
   }
- 
+
   const unsigned long midi_time = millis() - start_time;
-  
+
   // Updates keyboard: releases sustained keys that.
 
   const uint32_t keyboard_time_start = millis();
@@ -210,15 +242,15 @@ void loop() {
   // This is kind of a hack... but give the keyboard a future time
   // so that all keys just pressed get a value > 0 for their time
   // durations.
-  keyboard.Update(now_ms + delta_ms, delta_ms);
+  //keyboard.Update(now_ms + delta_ms, delta_ms);
   const uint32_t keyboard_delta_time = millis() - keyboard_time_start;
-  
+
   ui_state ui_st = ui_update(now_ms, delta_ms);
 
   //dprint("vis selector = ");
   //dprintln(vis_state);
-  
-  
+
+
   // These int values are for desting the performance of the
   // app. If the app ever runs slow then set kShowFps to 1
   // in the settings.h file.
@@ -227,13 +259,18 @@ void loop() {
 
 
   // Paints the keyboard using the led_rope.
-  Painter::VisState which_vis = Painter::VisState(ui_st.which_visualizer);
+  //Painter::VisState which_vis = Painter::VisState(ui_st.which_visualizer);
+  //dprint("vis selector = ");
+  //dprintln(which_vis);
+  //which_vis = (Painter::VisState)(2);
+
   Painter::Paint(now_ms, delta_ms, which_vis, &keyboard, &led_rope);
+  //Painter::Paint(now_ms, delta_ms, Painter::VisState::kNumVisStates, &keyboard, &led_rope);
 
   const unsigned long paint_time = millis() - start_time;
   const unsigned long total_time = midi_time + paint_time + keyboard_delta_time;
-  
-  if (kShowFps) {
+
+  if (kShowFps && is_debugging) {
     float fps = 1.0f/(float(total_time) / 1000.f);
     Serial.print("fps                  - "); Serial.println(fps);
     Serial.print("midi time            - "); Serial.println(midi_time);

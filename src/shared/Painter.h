@@ -17,7 +17,6 @@ struct Painter {
     kVUSpaceInvaders,
     kVegas,
     kBrightSurprise,
-
     kNumVisStates,
   };
 

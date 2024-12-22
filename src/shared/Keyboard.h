@@ -3,6 +3,7 @@
 #define KEYBOARD_H_
 
 #include <Arduino.h>
+#include "settings.h"
 #include "color.h"
 #include "./util.h"
 
@@ -54,7 +55,7 @@ struct Key {
 // (21-108) to the midi keys (0-88).
 class KeyboardState {
  public:
- 
+
   // NOTE: AS OF NOV-12-2013 we've disable all of the auto-sustained
   // notes in the high end of the keyboard.
   //enum {
@@ -95,10 +96,10 @@ class KeyboardState {
 
 
   static uint8_t KeyIndex(int midi_pitch);
- 
+
   Key* GetKey(int midi_pitch);
- 
-  static const int kNumKeys = 88;
+
+  static const int kNumKeys = NUM_KEYS; //88;
   bool sustain_pedal_;
   Key keys_[kNumKeys];
 };

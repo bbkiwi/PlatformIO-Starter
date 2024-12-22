@@ -52,6 +52,7 @@ class LedRopeTCL : public LedRopeInterface {
   
   virtual void Set(int i, const Color3i& c) {
     frame_buffer_.Set(i, c);
+    //Serial.print(" Set: "); Serial.print(i); Serial.print(" "); Serial.print(c.r_); Serial.print(" "); Serial.print(c.g_); Serial.print(" "); Serial.print(c.b_);
   }
 
   Color3i* GetIterator(int i) {

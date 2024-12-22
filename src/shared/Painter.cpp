@@ -118,7 +118,7 @@ void Painter::Paint(uint32_t now_ms,
     // TODO: Figure out a cleaner solution.
     light_rope->Set(i, key.curr_color_.ToRGB());
   }
-
+  //Serial.println(" ");
   LedColumns led_columns = LedLayoutArray();
 
   switch (vis_state) {

@@ -12,6 +12,7 @@
 #include "./util.h"
 
 // Serves as the pallet for selecting a color.
+// There are 7 schemes to choose from.
 struct ColorScheme {
   ColorScheme(const ColorHSV& c0,
               const ColorHSV& c1,
